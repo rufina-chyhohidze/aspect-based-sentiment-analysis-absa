@@ -1,16 +1,28 @@
-# This is a sample Python script.
-
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
+import kagglehub
+import os
+import shutil
 
 
-# Press the green button in the gutter to run the script.
+def download_dataset():
+    # Download dataset
+    path = kagglehub.dataset_download("farukalam/yelp-restaurant-reviews")
+    print("Downloaded to:", path)
+
+    # Define your own data folder
+    target_folder = "data"
+    os.makedirs(target_folder, exist_ok=True)
+
+    # Copy files recursively
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            src = os.path.join(root, file)
+            dst = os.path.join(target_folder, file)
+            shutil.copy(src, dst)
+
+    print("Files saved to:", target_folder)
+    print("Saved files:", os.listdir(target_folder))
+
+
 if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    # Example: run your dataset download
+    download_dataset()
