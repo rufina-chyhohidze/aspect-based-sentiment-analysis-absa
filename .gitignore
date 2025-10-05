@@ -1,0 +1,76 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+*.manifest
+*.spec
+
+# --- Virtual Environments ---
+.venv/
+venv/
+env/
+ENV/
+*.env
+*.venv
+
+# --- Jupyter Notebook ---
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+*.nbconvert/
+.jupyter/
+.profile
+.DS_Store
+
+# --- IDE & Editors ---
+.idea/
+.vscode/
+.spyproject/
+*.sublime-project
+*.sublime-workspace
+
+# --- OS Files ---
+Thumbs.db
+.DS_Store
+ehthumbs.db
+Icon?
+desktop.ini
+
+# --- Logs & Outputs ---
+*.log
+*.out
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# --- Data & Model Files ---
+data/
+datasets/
+models/
+checkpoints/
+*.h5
+*.hdf5
+*.pkl
+*.joblib
+*.ckpt
+
+# --- Environment & Secrets ---
+.env
+.env.*
+*.json
+*.yaml
+*.yml
+*.ini
+secrets/
+credentials/
+
+# --- Jupyter Auto-Save ---
+*.autosave.ipynb

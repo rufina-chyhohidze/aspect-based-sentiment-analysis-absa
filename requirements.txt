@@ -13,3 +13,4 @@ datasets==2.13.3           # optional, useful for loading benchmark datasets
 
 kagglehub~=0.3.13
 spacy~=3.8.7
+vaderSentiment==3.3.2
