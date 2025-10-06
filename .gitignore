@@ -74,3 +74,10 @@ credentials/
 
 # --- Jupyter Auto-Save ---
 *.autosave.ipynb
+
+
+
+# --- Checkpoints ----
+# PyABSA model checkpoints
+src/checkpoints/
+src/checkpoints.json
