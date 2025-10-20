@@ -35,7 +35,7 @@ def main():
     # Ensure column name matches (case-insensitive)
     possible_cols = [c for c in df.columns if "review" in c.lower() or "text" in c.lower()]
     if not possible_cols:
-        raise ValueError("❌ Couldn't find a 'Review Text' or similar column in the CSV.")
+        raise ValueError("Couldn't find a 'Review Text' or similar column in the CSV.")
 
     col_name = possible_cols[0]
     sample_review = df[col_name].dropna().sample(1).iloc[0]
@@ -43,10 +43,10 @@ def main():
     # Use this random review as ABSA input text
     text = str(sample_review)
 
-    print("\n🧠 Sampled text for ABSA analysis:\n")
+    print("\nSampled text for ABSA analysis:\n")
     print(text)
     print("\n" + "=" * 60)
-    print("🧠 Unified ABSA Demonstration")
+    print("Unified ABSA Demonstration")
     print("=" * 60)
     print(f"Input text:\n{text}\n")
 
@@ -64,7 +64,7 @@ def main():
             results = analyzer.analyze(text)
             display_results(name, results)
         except Exception as e:
-            print(f"[{name}] ❌ Error: {e}")
+            print(f"[{name}] Error: {e}")
 
 
 if __name__ == "__main__":
