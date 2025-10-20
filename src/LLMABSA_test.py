@@ -1,4 +1,4 @@
-from src.llm_3_absa import LLMABSA
+from src.LLMABSA import LLMABSA
 import pandas as pd
 
 df = pd.read_csv("../data/Yelp Restaurant Reviews.csv")

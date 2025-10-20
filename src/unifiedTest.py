@@ -1,17 +1,13 @@
 """
 Unified ABSA Comparison Display
-
-Runs all four ABSA implementations (LexiconABSA, LexiconOpinionFirstABSA,
-PyABSA, and LLMABSA) on the same input text and displays results side by side.
 """
 
 import pandas as pd
 
-# --- Import all analyzers ---
 from src.lexicon_absa import LexiconABSA
 from src.lexicon_absa2_opinion_to_sentiment import LexiconOpinionFirstABSA
-from src.llm_absa import ABSA
-from src.llm_3_absa import LLMABSA
+from src.ML_ABSA import ABSA
+from src.LLMABSA import LLMABSA
 
 
 def display_results(analyzer_name, results):
@@ -29,10 +25,8 @@ def display_results(analyzer_name, results):
 
 
 def main():
-    # --- Load dataset and pick a random review ---
     df = pd.read_csv("../data/Yelp Restaurant Reviews.csv")
 
-    # Ensure column name matches (case-insensitive)
     possible_cols = [c for c in df.columns if "review" in c.lower() or "text" in c.lower()]
     if not possible_cols:
         raise ValueError("Couldn't find a 'Review Text' or similar column in the CSV.")
@@ -40,7 +34,6 @@ def main():
     col_name = possible_cols[0]
     sample_review = df[col_name].dropna().sample(1).iloc[0]
 
-    # Use this random review as ABSA input text
     text = str(sample_review)
 
     print("\nSampled text for ABSA analysis:\n")
@@ -50,7 +43,6 @@ def main():
     print("=" * 60)
     print(f"Input text:\n{text}\n")
 
-    # --- Initialize all analyzers ---
     analyzers = [
         ("LexiconABSA (rule-based)", LexiconABSA()),
         ("LexiconOpinionFirstABSA (opinion-first)", LexiconOpinionFirstABSA()),
@@ -58,7 +50,6 @@ def main():
         ("LLMABSA (Local Ollama LLM)", LLMABSA()),
     ]
 
-    # --- Run each analyzer and display results ---
     for name, analyzer in analyzers:
         try:
             results = analyzer.analyze(text)

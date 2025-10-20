@@ -1,5 +1,3 @@
-#Base classes and interfaces
-
 from dataclasses import dataclass
 from typing import List
 
@@ -7,9 +5,9 @@ from typing import List
 @dataclass
 class AspectSentiment:
     aspect: str
-    sentiment: str  # 'positive', 'negative', 'neutral'
+    sentiment: str
     confidence: float
-    text_span: List[int]  # [start, end]
+    text_span: List[int]
 
 
 class ABSAAnalyzer:

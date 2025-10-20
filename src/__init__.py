@@ -8,11 +8,9 @@ def download_dataset():
     path = kagglehub.dataset_download("farukalam/yelp-restaurant-reviews")
     print("Downloaded to:", path)
 
-    # Define your own data folder
     target_folder = "data"
     os.makedirs(target_folder, exist_ok=True)
 
-    # Copy files recursively
     for root, dirs, files in os.walk(path):
         for file in files:
             src = os.path.join(root, file)
@@ -24,5 +22,4 @@ def download_dataset():
 
 
 if __name__ == '__main__':
-    # Example: run your dataset download
     download_dataset()

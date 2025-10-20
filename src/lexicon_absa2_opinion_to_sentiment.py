@@ -25,18 +25,16 @@ HEDGES = {
 
 NEGATION_WORDS = {"not", "n't", "never", "no"}
 
-# Domain stopwords / meaningless aspects
 ASPECT_STOPWORDS = {
     "bit", "time", "las", "nyc", "thing", "stuff", "everything",
-    "anything", "something", "place"  # optional, if you want to keep only specific entities
+    "anything", "something", "place"
 }
 
 
 # Positive words that VADER often misinterprets
 DOMAIN_POS_OVERRIDE = {"crazy", "deliciousness", "heaven", "insane"}
-DOMAIN_NEG_OVERRIDE = set()  # if needed later
+DOMAIN_NEG_OVERRIDE = set()
 
-# --- Domain collocations ---
 COLLOCATIONS = [
     "ice cream",
     "red velvet",
@@ -45,7 +43,6 @@ COLLOCATIONS = [
 ]
 
 def preprocess_collocations(text: str) -> str:
-    """Replace known multi-word collocations with underscored versions robustly (handle punctuation and special spaces)."""
     # normalize unicode spaces (e.g., non-breaking spaces)
     text = re.sub(r"\s+", " ", text)
 
@@ -58,13 +55,10 @@ def preprocess_collocations(text: str) -> str:
 
 
 def postprocess_aspect(aspect: str) -> str:
-    """Restore original spacing after analysis."""
     return aspect.replace("_", " ")
 
-# --- Helper functions ---
 
 def get_sentiment_score(token) -> float:
-    """Get sentiment polarity for a token with modifiers, overrides and negation."""
     lemma = token.lemma_.lower()
     if lemma in DOMAIN_POS_OVERRIDE:
         base_score = 0.6
@@ -73,7 +67,6 @@ def get_sentiment_score(token) -> float:
     else:
         base_score = vader.polarity_scores(token.text)["compound"]
 
-    # intensifiers and hedges
     for child in token.children:
         if child.dep_ == "advmod":
             adv = child.text.lower()
@@ -82,12 +75,10 @@ def get_sentiment_score(token) -> float:
             elif adv in HEDGES:
                 base_score *= HEDGES[adv]
 
-    # negation (children)
     for child in token.children:
         if child.dep_ == "neg" or child.text.lower() in NEGATION_WORDS:
             base_score = -base_score
 
-    # negation (previous tokens)
     for prev in token.lefts:
         if prev.text.lower() in NEGATION_WORDS:
             base_score = -base_score
@@ -97,11 +88,9 @@ def find_aspect_for_opinion(token):
     doc = token.doc
     colloc_tokens = [c.replace(" ", "_") for c in COLLOCATIONS]
 
-    # Direct collocation match
     if token.text.lower() in colloc_tokens:
         return doc[token.i:token.i+1]
 
-    # Look left/right for collocation
     for offset in range(1, 4):
         if token.i - offset >= 0:
             neighbor = doc[token.i - offset]
@@ -112,7 +101,6 @@ def find_aspect_for_opinion(token):
             if neighbor.text.lower() in colloc_tokens:
                 return doc[neighbor.i:neighbor.i+1]
 
-    # --- 🆕 Expand head if it contains a collocation compound ---
     head = token.head
     if head.pos_ in {"NOUN", "PROPN"}:
         # check its children for collocation tokens
@@ -122,12 +110,10 @@ def find_aspect_for_opinion(token):
     if head.text.lower() in colloc_tokens:
         return doc[head.i:head.i+1]
 
-    # Helper: longest noun chunk containing a token
     def longest_chunk_containing(t):
         chunks = [c for c in doc.noun_chunks if t.i >= c.start and t.i < c.end]
         return max(chunks, key=lambda c: len(c.text)) if chunks else None
 
-    # Standard chunk search
     if head.pos_ in {"NOUN", "PROPN"}:
         chunk = longest_chunk_containing(head)
         if chunk:
@@ -139,7 +125,6 @@ def find_aspect_for_opinion(token):
             if chunk:
                 return chunk
 
-    # Fallback: left/right scan
     sent_tokens = list(token.sent)
     idx = sent_tokens.index(token)
 
@@ -170,10 +155,9 @@ def normalize_aspect(txt: str) -> str:
     aspect = re.sub(r"[^\w\s]", "", aspect)      # remove punctuation but keep spaces
     aspect = re.sub(r"\s+", " ", aspect).strip() # collapse multiple spaces
 
-    # handle known multi-word domain expressions
     DOMAIN_MULTIWORD_FIXES = {
         "ice cream": "ice cream",
-        "icecream": "ice cream",   # for some tokenization cases
+        "icecream": "ice cream",
     }
     if aspect in DOMAIN_MULTIWORD_FIXES:
         aspect = DOMAIN_MULTIWORD_FIXES[aspect]
@@ -184,7 +168,6 @@ def normalize_aspect(txt: str) -> str:
     return aspect
 
 
-# --- ABSA implementation ---
 class LexiconOpinionFirstABSA(ABSAAnalyzer):
     def analyze(self, text: str) -> List[AspectSentiment]:
         # Lock collocations
@@ -202,7 +185,6 @@ class LexiconOpinionFirstABSA(ABSAAnalyzer):
 
                 chunk = find_aspect_for_opinion(token)
                 if chunk:
-                    # restore original spacing after normalization
                     normalized = postprocess_aspect(normalize_aspect(chunk.text))
                     if normalized:
                         aspect_scores[normalized].append(score)
@@ -231,7 +213,6 @@ class LexiconOpinionFirstABSA(ABSAAnalyzer):
                 )
             )
 
-        # Fuzzy deduplication remains the same
         final_results = []
         for r in results:
             dup = False

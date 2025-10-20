@@ -113,7 +113,6 @@ class LLMABSA(ABSAAnalyzer):
             "- Do NOT include any commentary. Output JSON only."
         )
 
-        # Two compact few-shot examples to stabilize JSON formatting & behavior
         ex1_user = (
             "The pizza was delicious but the service was terrible. "
             "The ice cream was just okay."
@@ -234,7 +233,6 @@ class LLMABSA(ABSAAnalyzer):
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            # Try to fix common JSON trailing commas or smart quotes
             fixed = raw.replace("“", '"').replace("”", '"').replace("’", "'")
             fixed = re.sub(r",\s*([\]\}])", r"\1", fixed)
             try:
