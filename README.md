@@ -149,22 +149,170 @@ AspectSentiment(aspect='prices', sentiment='negative', confidence=0.86, text_spa
 
 ---
 
-## File Structure
+## License
+MIT License. Attribution to original PyABSA and VADER authors is appreciated.
 
+
+Here’s the **updated `README.md`** with **Exercise 3** using **Ollama and a local LLM**. It fits seamlessly with the previous sections and avoids repeating shared explanations.
+
+---
+
+## Exercise 3 — ABSA via Local LLM (Ollama)
+
+This module performs **Aspect-Based Sentiment Analysis (ABSA)** by prompting a **local large language model (LLM)** through [Ollama](https://ollama.com/). It uses a carefully crafted prompt with few-shot examples and expects strict JSON output from the model.
+
+---
+
+### Overview
+
+* **Approach**: Uses a local LLM (e.g., `llama3`, `mistral`, `phi`) to extract aspects and associated sentiment.
+* **Architecture**: Calls Ollama via HTTP `/api/chat`, parses JSON output, and maps to the shared `AspectSentiment` structure.
+* **Few-shot prompt**: Demonstrates expected behavior with 2 worked-out examples.
+* **Offline-first**: Ollama runs locally; no internet or cloud APIs are needed.
+
+---
+
+### Features
+
+* Prompts the model with a strict JSON schema:
+
+  ```json
+  {
+    "aspect": str,
+    "sentiment": "positive|negative|neutral",
+    "confidence": float between 0 and 1,
+    "text_span": [start, end]
+  }
+  ```
+* Handles:
+
+  * Malformed or extra text responses (e.g., prose before/after JSON)
+  * Missing fields and confidence repair
+  * Span correction using fuzzy search
+  * Deduplication of repeated aspects
+* Configurable:
+
+  * LLM model (`llama3.2` by default)
+  * Temperature, retry behavior, timeout, and base URL
+
+---
+
+### Setup
+
+Ensure [Ollama](https://ollama.com/) is installed and running locally.
+
+Start a model (e.g., `llama3`):
+
+```bash
+ollama run llama3
 ```
-project/
-├── src/
-│   ├── base.py             # Shared ABSA base class & data structure
-│   ├── lexicon_absa.py     # Exercise 1 (aspect-first)
-│   ├── lexicon_absa2_opinion_to_sentiment.py     # Exercise 1 (opinion-first)
-│   ├── llm_absa.py       # Exercise 2 (PyABSA transformer-based)
-│   └── doc/punkt/          # NLTK tokenizer directory
-├── models/                 # PyABSA model checkpoint cache
-├── requirements.txt
-└── README.md
+
+Then, install required Python dependencies:
+
+```bash
+pip install requests
+```
+
+> This module assumes the shared base class `ABSAAnalyzer` and the `AspectSentiment` dataclass exist in `src/base.py`.
+
+---
+
+### Example Usage
+
+```python
+if __name__ == "__main__":
+    analyzer = LLMABSA(model="llama3")
+    text = "The affogato was amazing but the wait time was unbearable. I wouldn’t recommend the cupcakes either."
+    results = analyzer.analyze(text)
+
+    for r in results:
+        print(r)
+```
+
+#### Sample Output
+
+```text
+AspectSentiment(aspect='affogato', sentiment='positive', confidence=0.87, text_span=[4, 12])
+AspectSentiment(aspect='wait time', sentiment='negative', confidence=0.82, text_span=[33, 43])
+AspectSentiment(aspect='cupcakes', sentiment='negative', confidence=0.75, text_span=[78, 86])
 ```
 
 ---
 
-## License
-MIT License. Attribution to original PyABSA and VADER authors is appreciated.
+### Implementation Notes
+
+* Uses `/api/chat` endpoint from Ollama’s local server (`http://localhost:11434`).
+* Prompts include two few-shot examples to improve JSON formatting.
+* Confidence values default to `0.0` if not parsable.
+* If an aspect span is missing or invalid, it tries to find the **first occurrence** in the input text.
+
+---
+
+### Class: `LLMABSA`
+
+```python
+LLMABSA(
+    model="llama3.2",
+    temperature=0.2,
+    max_retries=2,
+    timeout_s=60,
+    base_url="http://localhost:11434"
+)
+```
+
+#### Method: `analyze(text: str) -> List[AspectSentiment]`
+
+* Calls the LLM via HTTP and parses the output.
+* Returns a list of structured `AspectSentiment` objects.
+* Invalid/missing predictions are ignored.
+
+---
+
+### Example Prompt (Few-shot)
+
+```json
+Input:
+"The pizza was delicious but the service was terrible. The ice cream was just okay."
+
+Output:
+[
+  {"aspect": "pizza", "sentiment": "positive", "confidence": 0.85, "text_span": [4, 9]},
+  {"aspect": "service", "sentiment": "negative", "confidence": 0.88, "text_span": [37, 44]},
+  {"aspect": "ice cream", "sentiment": "neutral", "confidence": 0.55, "text_span": [55, 64]}
+]
+```
+
+---
+
+### Strengths
+
+* Model-agnostic: Works with any local model supported by Ollama.
+* Zero-training: No need to fine-tune or maintain external model checkpoints.
+* Flexible: Can be adapted to other schema formats, domains, or tasks.
+
+---
+
+### Limitations
+
+* JSON parsing may occasionally fail if the model drifts from the expected format.
+* Long or complex reviews might exceed model context length.
+* Performance varies based on LLM size and quality (e.g., `llama3` > `mistral`).
+
+---
+
+### File Structure
+
+```
+project/
+├── src/
+│   ├── base.py             # Shared ABSA base class & dataclass
+│   ├── lexicon_absa.py     # Exercise 1 (aspect-first)
+│   ├── lexicon_absa2_opinion_to_sentiment.py     # Exercise 1 (opinion-first)
+│   ├── llm_absa.py       # Exercise 2 (PyABSA transformer-based)
+│   ├── llm_3_absa.py         # Exercise 3: Ollama-based local LLM
+│   └── doc/punkt/          # NLTK tokenizer
+├── models/                 # PyABSA checkpoint cache
+├── requirements.txt
+└── README.md
+```
+---

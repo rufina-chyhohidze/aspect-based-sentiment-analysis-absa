@@ -1,0 +1,7 @@
+### Test Unified ABSA API
+POST http://127.0.0.1:8000/analyze
+Content-Type: application/json
+
+{
+    "text": "The ice cream was delicious but the service was slow."
+}
