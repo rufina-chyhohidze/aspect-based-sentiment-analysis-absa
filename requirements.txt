@@ -16,3 +16,4 @@ spacy~=3.8.7
 vaderSentiment==3.3.2
 nltk~=3.9.2
 pyabsa~=2.4.2
+RapidFuzz~=3.14.1
