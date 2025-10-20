@@ -5,7 +5,6 @@ from rapidfuzz import fuzz
 from src.base import ABSAAnalyzer, AspectSentiment
 from collections import defaultdict
 
-
 nlp = spacy.load("en_core_web_sm")
 vader = SentimentIntensityAnalyzer()
 FUZZY_THRESHOLD = 85  # fuzzy similarity cutoff
@@ -19,13 +18,12 @@ KEY_ASPECTS = {
     "baguette", "butter", "sandwich", "ham", "cheese", "cashew", "sundae", "cereal",
     "topping", "store", "popcorn", "sorbet", "yogurt", "pizza", "taiyaki", "shop",
     "donut", "cupcake", "waffle", "flat white", "cappuccino", "macaron",
-    "creme brulee", "cafe", "affogato", "cheesecake", "honey", "waffle cones","tart","brownie"
-
+    "creme brulee", "cafe", "affogato", "cheesecake", "honey", "waffle cones",
+    "tart", "brownie",
     "staff", "worker", "employee", "personnel", "cashier", "barista",
     "waiter", "waitress", "manager", "service", "recommendation", "advice", "help"
 }
 
-#sentiment to aspect , the list is smaller than the list of possible aspects
 REVIEWER_BLACKLIST = {"tolerance", "preference", "habit", "emotion", "mood"}
 
 INTENSIFIERS = {
@@ -47,7 +45,6 @@ GENERIC_POS_ADJECTIVES = {
 }
 
 # --- Helper functions ---
-
 def clean_aspect(txt: str) -> str:
     txt = re.sub(r"^(the|my|a|this|an|their|your|these|those|our)\s+", "", txt.strip().lower())
     words = txt.split()
@@ -104,7 +101,7 @@ def extract_aspects(sent):
 
             aspect_tokens.append(token)
 
-            # Merge consecutive proper nouns or compounds (e.g. San Diego / work sundae)
+            # Merge consecutive nouns / proper nouns
             next_token = token.nbor(1) if token.i + 1 < len(sent.doc) else None
             while next_token is not None and next_token.pos_ in {"PROPN", "NOUN"}:
                 if next_token.idx - aspect_tokens[-1].idx - len(aspect_tokens[-1]) <= 1:
@@ -136,8 +133,6 @@ def get_root_aspect(aspect: str) -> str:
     doc = nlp(aspect)
     nouns = [token.lemma_ for token in doc if token.pos_ in {"NOUN", "PROPN"}]
     return nouns[-1] if nouns else aspect.lower()
-
-# --- ABSA Analyzer ---
 
 class LexiconABSA(ABSAAnalyzer):
     def analyze(self, text: str):
@@ -180,25 +175,35 @@ class LexiconABSA(ABSAAnalyzer):
                                 if prev_tok is not None and prev_tok.text.lower() == "not":
                                     compound = -compound
                                 scores.append(compound)
+
                         # negation pattern
-                        if (token.text.lower() == "not" and token.head.pos_ == "ADJ" and token.head.i > token.i):
+                        if token.text.lower() == "not" and token.head.pos_ == "ADJ" and token.head.i > token.i:
                             compound = vader.polarity_scores(token.head.text)["compound"]
                             scores.append(-compound)
+
                         # opinion verbs
                         if token.pos_ == "VERB" and token.lemma_.lower() in {"love", "like", "enjoy", "recommend", "hate", "dislike"}:
                             compound = vader.polarity_scores(token.text)["compound"]
                             scores.append(compound)
 
-                # ---  VADER scoring
-                avg_score = sum(scores) / len(scores) if scores else 0.0
-                if avg_score >= 0.05:
+                # --- Improved VADER scoring ---
+                window_text = sent.text
+                local_score = sum(scores) / len(scores) if scores else 0.0
+                sentence_score = vader.polarity_scores(window_text)["compound"]
+
+                # weighted average (70% local, 30% sentence)
+                avg_score = 0.7 * local_score + 0.3 * sentence_score
+                avg_score = max(min(avg_score * 0.8, 1), -1)
+
+                # wider neutral zone
+                if avg_score > 0.2:
                     sentiment = "positive"
-                elif avg_score <= -0.05:
+                elif avg_score < -0.2:
                     sentiment = "negative"
                 else:
                     sentiment = "neutral"
 
-                confidence = round(abs(avg_score), 4)
+                confidence = round(min(1.0, abs(avg_score) + 0.05), 4)
 
                 existing = aspect_sentiments.get(norm_asp)
                 if existing:
@@ -217,11 +222,16 @@ class LexiconABSA(ABSAAnalyzer):
                         "end": end_char
                     }
 
-        # Fallback if no aspect sentiments found
+        # fallback if no aspect sentiments found
         if not aspect_sentiments:
             compound = vader.polarity_scores(text)["compound"]
-            sentiment = "positive" if compound >= 0.05 else "negative" if compound <= -0.05 else "neutral"
-            confidence = round(abs(compound), 4)
+            if compound > 0.2:
+                sentiment = "positive"
+            elif compound < -0.2:
+                sentiment = "negative"
+            else:
+                sentiment = "neutral"
+            confidence = round(min(1.0, abs(compound) + 0.05), 4)
             aspect_sentiments["experience"] = {
                 "sentiment": sentiment,
                 "confidence": confidence,
@@ -229,21 +239,18 @@ class LexiconABSA(ABSAAnalyzer):
                 "end": len(text)
             }
 
-        # Convert to AspectSentiment instances
-        results = []
-        for aspect, info in aspect_sentiments.items():
-            if info["sentiment"] == "neutral" and info["confidence"] < 0.1:
-                continue
-            results.append(
-                AspectSentiment(
-                    aspect=aspect,
-                    sentiment=info["sentiment"],
-                    confidence=info["confidence"],
-                    text_span=[info["start"], info["end"]]
-                )
+        # Convert to AspectSentiment objects (keep neutrals)
+        results = [
+            AspectSentiment(
+                aspect=aspect,
+                sentiment=info["sentiment"],
+                confidence=info["confidence"],
+                text_span=[info["start"], info["end"]]
             )
+            for aspect, info in aspect_sentiments.items()
+        ]
 
-        # Group by root aspect lemma to reduce repetitions
+        # Group by root aspect lemma
         grouped = defaultdict(list)
         for r in results:
             root = get_root_aspect(r.aspect)
@@ -275,12 +282,12 @@ class LexiconABSA(ABSAAnalyzer):
         return final_results
 
 
-# --- Example Run ---
 if __name__ == "__main__":
     analyzer = LexiconABSA()
     text = (
         "Natalie is phenomenal!!! She helped us pick out pastries based off our taste preferences. "
-        "The service was great, and we’ll definitely come back, and waffles were ok"
+        "The service was great, and we’ll definitely come back, and waffles were ok. "
+        "Coffee was too bitter but the croissant was buttery and fresh."
     )
     results = analyzer.analyze(text)
 
