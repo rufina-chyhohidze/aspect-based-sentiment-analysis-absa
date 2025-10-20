@@ -1,7 +1,6 @@
 """
 Unified ABSA Comparison Display
 """
-
 import pandas as pd
 
 from src.lexicon_absa import LexiconABSA
