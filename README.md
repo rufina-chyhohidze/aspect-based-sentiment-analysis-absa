@@ -1,4 +1,4 @@
-# 🧠 Unified Aspect-Based Sentiment Analysis (ABSA) API
+# Unified Aspect-Based Sentiment Analysis (ABSA) API
 
 A **FastAPI-based service** that unifies multiple approaches to **Aspect-Based Sentiment Analysis (ABSA)** — combining **rule-based**, **opinion-first**, **machine learning (Transformer)**, and **LLM** models into one consistent API.
 
@@ -104,12 +104,6 @@ python -m pyabsa download checkpoint
 ## Running the API
 
 Run with:
-
-```bash
-python -m src.api.api_exposed
-```
-
-Or with Uvicorn explicitly:
 
 ```bash
 uvicorn src.api.api_exposed:app --host 0.0.0.0 --port 8000

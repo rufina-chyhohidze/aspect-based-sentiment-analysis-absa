@@ -67,7 +67,7 @@ class LLMABSA(ABSAAnalyzer):
 
     def __init__(
         self,
-        model: str = "gemma3:1b",
+        model: str = "llama3",
         temperature: float = 0.2,
         max_retries: int = 2,
         timeout_s: int = 60,
