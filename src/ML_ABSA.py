@@ -1,16 +1,16 @@
 import nltk
 import os
-import torch
 from typing import List
 from nltk.tokenize import sent_tokenize
 import json
 from sklearn.metrics import precision_recall_fscore_support
 
+
 try:
     from src.base import ABSAAnalyzer, AspectSentiment
 except ModuleNotFoundError:
     from base import ABSAAnalyzer, AspectSentiment
-from pyabsa import ATEPCCheckpointManager  # ✅ newer API
+from pyabsa import ATEPCCheckpointManager
 
 # --------------------------
 # NLTK setup
@@ -30,23 +30,19 @@ for pkg in ["punkt", "punkt_tab/english"]:
 # ABSA Class
 # --------------------------
 class ABSA(ABSAAnalyzer):
-    def __init__(self, model_name=None, device=None, min_confidence: float = 0.3):
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    def __init__(self, model_name=None, min_confidence: float = 0.3):
         self.min_confidence = min_confidence
 
-        # Resolve default checkpoint path relative to this file
+        # Use default checkpoint name for automatic download
         if model_name is None:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            model_name = os.path.join(
-                base_dir, "checkpoints", "ATEPC_MULTILINGUAL_CHECKPOINT"
-            )
-            model_name = os.path.normpath(model_name)
+            model_name = "multilingual"  # PyABSA will download if not present
 
-        print(f"Loading PyABSA model from '{model_name}' on device: {self.device}")
+        print(f"Loading PyABSA model '{model_name}'...")
 
         self.aspect_extractor = ATEPCCheckpointManager.get_aspect_extractor(
-            checkpoint=model_name,
-            auto_device=True,
+            checkpoint="multilingual",
+            auto_device=False,
+            device="cpu"
         )
 
     def analyze(self, text: str) -> List[AspectSentiment]:
