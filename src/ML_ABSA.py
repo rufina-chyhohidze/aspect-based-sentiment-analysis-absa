@@ -1,52 +1,52 @@
-from src.base import ABSAAnalyzer, AspectSentiment
-from pyabsa import AspectTermExtraction as ATEPC
-from typing import List
-import torch
 import nltk
 import os
+import torch
+from typing import List
 from nltk.tokenize import sent_tokenize
+import json
+from sklearn.metrics import precision_recall_fscore_support
 
+try:
+    from src.base import ABSAAnalyzer, AspectSentiment
+except ModuleNotFoundError:
+    from base import ABSAAnalyzer, AspectSentiment
+from pyabsa import ATEPCCheckpointManager  # ✅ newer API
+
+# --------------------------
 # NLTK setup
+# --------------------------
 nltk_data_dir = os.path.join(os.path.dirname(__file__), "doc")
 os.makedirs(nltk_data_dir, exist_ok=True)
 nltk.data.path.append(nltk_data_dir)
 
-# Download punkt only if missing
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt', download_dir=nltk_data_dir)
-
-# Download punkt_tab only if missing
-try:
-    nltk.data.find('tokenizers/punkt_tab/english')
-except LookupError:
-    nltk.download('punkt_tab', download_dir=nltk_data_dir)
+for pkg in ["punkt", "punkt_tab/english"]:
+    try:
+        nltk.data.find(f"tokenizers/{pkg}")
+    except LookupError:
+        nltk.download(pkg, download_dir=nltk_data_dir)
 
 
-import os
-from src.base import ABSAAnalyzer, AspectSentiment
-from pyabsa import AspectTermExtraction as ATEPC
-from typing import List
-from nltk.tokenize import sent_tokenize
-import torch
-
+# --------------------------
+# ABSA Class
+# --------------------------
 class ABSA(ABSAAnalyzer):
-    def __init__(self, model_name="english_lcf_atepc", device=None, min_confidence: float = 0.3):
+    def __init__(self, model_name=None, device=None, min_confidence: float = 0.3):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.min_confidence = min_confidence
 
-        # Use project root instead of __file__ (works in FastAPI)
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.model_dir = os.path.join(project_root, "models", model_name)
-        os.makedirs(self.model_dir, exist_ok=True)
+        # Resolve default checkpoint path relative to this file
+        if model_name is None:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            model_name = os.path.join(
+                base_dir, "checkpoints", "ATEPC_MULTILINGUAL_CHECKPOINT"
+            )
+            model_name = os.path.normpath(model_name)
 
-        print(f"Loading PyABSA model '{model_name}' on device: {self.device}")
-        self.aspect_extractor = ATEPC.AspectExtractor(
-            model_name,
-            checkpoint_save_path=self.model_dir,
+        print(f"Loading PyABSA model from '{model_name}' on device: {self.device}")
+
+        self.aspect_extractor = ATEPCCheckpointManager.get_aspect_extractor(
+            checkpoint=model_name,
             auto_device=True,
-            cal_perplexity=True
         )
 
     def analyze(self, text: str) -> List[AspectSentiment]:
@@ -81,13 +81,47 @@ class ABSA(ABSAAnalyzer):
         return aspect_sentiments
 
 
+# --------------------------
+# Evaluation function
+# --------------------------
+def evaluate_absa(model: ABSA, dataset_path: str):
+    with open(dataset_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
 
+    y_true, y_pred = [], []
+
+    for item in data:
+        text = item["text"]
+        gold_aspects = {(a["aspect"].lower(), a["sentiment"].lower()) for a in item["aspects"]}
+        pred_aspects = {(r.aspect.lower(), r.sentiment.lower()) for r in model.analyze(text)}
+
+        for aspect, sentiment in gold_aspects:
+            if (aspect, sentiment) in pred_aspects:
+                y_true.append(sentiment)
+                y_pred.append(sentiment)
+            else:
+                y_true.append(sentiment)
+                y_pred.append("none")
+
+        # Extra predictions not in gold data
+        for aspect, sentiment in pred_aspects - gold_aspects:
+            y_true.append("none")
+            y_pred.append(sentiment)
+
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_true, y_pred, average="weighted", zero_division=0
+    )
+
+    print(f"Precision: {precision:.3f}")
+    print(f"Recall:    {recall:.3f}")
+    print(f"F1-score:  {f1:.3f}")
+
+
+# --------------------------
+# Main
+# --------------------------
 if __name__ == "__main__":
     absa = ABSA()
-    text = (
-        "The ice cream was delicious but the service was very slow. "
-        "The restaurant had a cozy atmosphere but the prices were high."
-    )
-    results = absa.analyze(text)
-    for r in results:
-        print(r)
+    # Adjust this path relative to the file
+    test_file_path = os.path.join(os.path.dirname(__file__), "evaluator", "absa_test.json")
+    evaluate_absa(absa, test_file_path)
