@@ -167,22 +167,19 @@ def normalize_aspect(txt: str) -> str:
 
     return aspect
 
-
 class LexiconOpinionFirstABSA(ABSAAnalyzer):
     def analyze(self, text: str) -> List[AspectSentiment]:
-        # Lock collocations
         raw_text = text
         text = preprocess_collocations(text)
-
         doc = nlp(text)
         aspect_scores = defaultdict(list)
 
         for token in doc:
             if token.pos_ == "ADJ" or (token.pos_ == "VERB" and token.lemma_.lower() in {"love", "like", "hate", "dislike", "recommend"}):
                 score = get_sentiment_score(token)
-                if score == 0:
-                    continue
 
+                # ✅ Don't skip neutral (score==0)
+                # Instead, still link it to its aspect
                 chunk = find_aspect_for_opinion(token)
                 if chunk:
                     normalized = postprocess_aspect(normalize_aspect(chunk.text))
@@ -191,7 +188,11 @@ class LexiconOpinionFirstABSA(ABSAAnalyzer):
 
         results = []
         for aspect, scores in aspect_scores.items():
+            if not scores:
+                continue
             avg_score = sum(scores) / len(scores)
+
+            # ✅ keep a wider neutral zone
             if avg_score > 0.05:
                 sentiment = "positive"
             elif avg_score < -0.05:
@@ -199,7 +200,8 @@ class LexiconOpinionFirstABSA(ABSAAnalyzer):
             else:
                 sentiment = "neutral"
 
-            confidence = abs(avg_score)
+            # ✅ use small constant for confidence when neutral
+            confidence = abs(avg_score) if sentiment != "neutral" else 0.2
 
             start = raw_text.lower().find(aspect)
             end = start + len(aspect)
@@ -213,6 +215,7 @@ class LexiconOpinionFirstABSA(ABSAAnalyzer):
                 )
             )
 
+        # --- Deduplication (same as before) ---
         final_results = []
         for r in results:
             dup = False
@@ -229,7 +232,6 @@ class LexiconOpinionFirstABSA(ABSAAnalyzer):
                 final_results.append(r)
 
         return final_results
-
 
 
 if __name__ == "__main__":
