@@ -10,7 +10,7 @@ from src.base import ABSAAnalyzer, AspectSentiment
 
 def _first_json_block(text: str) -> Optional[str]:
     """
-    Extract the first JSON array/object from a string (tolerates extra prose).
+    Extract the first JSON array/object from a string.
     """
     m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text, re.IGNORECASE)
     if m:
@@ -67,7 +67,7 @@ class LLMABSA(ABSAAnalyzer):
 
     def __init__(
         self,
-        model: str = "llama3",
+        model: str = "llama3.1",
         temperature: float = 0.2,
         max_retries: int = 2,
         timeout_s: int = 60,
@@ -194,7 +194,6 @@ class LLMABSA(ABSAAnalyzer):
             "stream": False,
             "options": {
                 "temperature": self.temperature,
-                # Feel free to tweak these if needed:
                 "num_ctx": 4096,
             },
         }
